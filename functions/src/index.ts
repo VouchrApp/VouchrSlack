@@ -1,7 +1,8 @@
 import * as functions from 'firebase-functions';
-import { Command, ErrorCode } from './enum';
+import { Command, ErrorCode, ResponseStatus } from './enum';
 import { ValidationService } from './service/validation.service';
 import { Error } from './exception';
+import { CategoryService } from './service/category.service';
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -9,6 +10,9 @@ import { Error } from './exception';
 
 
 const validationService = new ValidationService();
+const categoryService = new CategoryService();
+
+
 export const eventSubscription = functions.https.onRequest((request, response) => {
     functions.logger.info("Event subscription!", { structuredData: true });
     const { challenge } = request.body;
@@ -28,25 +32,30 @@ export const templateCommand = functions.https.onRequest((request, response) => 
 })
 
 function processException(error: Error) {
-    let object;
+    let response = {
+        "response_type": "in_channel",
+        "text": "Something unexpected occured",
+        "status": ResponseStatus.INTERNAL_SERVER_ERROR
+    };
+
     if (error.code === ErrorCode.TIMEOUT) {
-        object = {
+        response = {
             "response_type": "in_channel",
             "text": "Unable to process command. try again!",
-            "status": 400
+            "status": ResponseStatus.BAD_REQUEST
         };
     } else if (error.code === ErrorCode.UNAUTHORIZED) {
-        object = {
+        response = {
             "response_type": "in_channel",
             "text": "Unauthorized request",
-            "status": 401
+            "status": ResponseStatus.UNAUTHORIZED
         };
     }
-    return object
+    return response
 }
 
 
-export const slashCommand = functions.https.onRequest((request, response) => {
+export const categoryCommand = functions.https.onRequest((request, response) => {
     functions.logger.info("request body", request.body);
     const { command } = request.body;
     if (command !== Command.CATEGORY) {
@@ -55,22 +64,18 @@ export const slashCommand = functions.https.onRequest((request, response) => {
         return;
     }
     try {
-        functions.logger.info("=============", functions.config().slack.signing.secret);
         validationService.validateRequest(functions.config().slack.signing.secret, request);
         functions.logger.info("after validation of request");
     } catch (exception) {
         functions.logger.error(exception);
         if (exception instanceof Error) {
-            const error = processException(exception);
-            if (error) {
-                response.sendStatus(error.status);
-                delete error.status;
-            }
-            response.send(error)
+            const errorResponse = processException(exception);
+            const status = errorResponse.status;
+            delete errorResponse.status;
+            response.status(status).send(errorResponse);
         } else {
-            response.send(exception);
+            response.status(ResponseStatus.INTERNAL_SERVER_ERROR).send(exception);
         }
-        response.send(exception);
         return;
     }
 
