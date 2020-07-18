@@ -12,6 +12,12 @@ export enum ResponseStatus {
     INTERNAL_SERVER_ERROR = 500,
     UNAUTHORIZED = 401,
     BAD_REQUEST = 400,
+}
 
+export enum METHOD {
+    GET = "GET",
+    POST = "POST",
+    PUT = "PUT",
+    DELETE = "DELETE"
 }
 

@@ -1,4 +1,3 @@
-import * as functions from 'firebase-functions';
 import * as crypto from 'crypto';
 import { TimeoutException, UnauthorizedException } from '../exception/exceptions';
 
@@ -6,10 +5,10 @@ import { TimeoutException, UnauthorizedException } from '../exception/exceptions
 export class ValidationService {
     readonly version: string = 'v0';
 
-    validateRequest(signingSecret: string, request: functions.https.Request): void {
+    validateRequest(signingSecret: string, signingInfo: { timestamp: any; body: any; }): void {
         const currentTime: number = new Date().getTime();
-        const { 'X-Slack-Request-Timestamp': timestamp } = request.headers;
-        const contents: string = [this.version, timestamp, request.body].join(':');
+        const timestamp = signingInfo.timestamp;
+        const contents: string = [this.version, timestamp, signingInfo.body].join(':');
         if (timestamp && parseInt(timestamp.toString())) {
             const timeStampToMilli = parseInt(timestamp.toString()) * 60 * 5 * 1000;
             if (currentTime > timeStampToMilli) {

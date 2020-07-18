@@ -1,8 +1,9 @@
 import * as functions from 'firebase-functions';
-import { Command, ErrorCode, ResponseStatus } from './enum';
+import { Command, ErrorCode, ResponseStatus, METHOD } from './enum';
 import { ValidationService } from './service/validation.service';
 import { Error } from './exception';
 import { CategoryService } from './service/category.service';
+import { TemplateService } from './service/template.service';
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -11,7 +12,8 @@ import { CategoryService } from './service/category.service';
 
 const validationService = new ValidationService();
 const categoryService = new CategoryService();
-
+const templateService = new TemplateService();
+const slackRequestTime = 'x-slack-request-timestamp';
 
 export const eventSubscription = functions.https.onRequest((request, response) => {
     functions.logger.info("Event subscription!", { structuredData: true });
@@ -20,13 +22,14 @@ export const eventSubscription = functions.https.onRequest((request, response) =
     response.send({ challenge });
 });
 
-
-
 export const templateCommand = functions.https.onRequest((request, response) => {
     const { command } = request.body;
 
-    if (command !== Command.TEMPLATE) {
-        response.send();
+    if (METHOD.POST !== request.method || command !== Command.TEMPLATE) {
+        response.status(400).send({
+            "response_type": "in_channel",
+            "text": "invalid request",
+        });
         return;
     }
 })
@@ -54,9 +57,7 @@ function processException(error: Error) {
     return response
 }
 
-
 export const categoryCommand = functions.https.onRequest((request, response) => {
-    functions.logger.info("request body", request.body);
     const { command } = request.body;
     if (command !== Command.CATEGORY) {
         functions.logger.info("invalid command: ", command);
@@ -64,8 +65,12 @@ export const categoryCommand = functions.https.onRequest((request, response) => 
         return;
     }
     try {
-        validationService.validateRequest(functions.config().slack.signing.secret, request);
-        functions.logger.info("after validation of request");
+        const signingInfo = {
+            timestamp: request.headers[slackRequestTime],
+            body: request.body
+        }
+        functions.logger.info("signing information", signingInfo);
+        validationService.validateRequest(functions.config().slack.signing.secret, signingInfo);
     } catch (exception) {
         functions.logger.error(exception);
         if (exception instanceof Error) {
@@ -79,47 +84,9 @@ export const categoryCommand = functions.https.onRequest((request, response) => 
         return;
     }
 
-
-    // const { text } = request.body;
-    // if (text !== '') {
-    //     functions.logger.info("find category", text, { structuredData: true });
-    // }
-
-    // const options =
-    //     [{
-    //         "text": {
-    //             "type": "plain_text",
-    //             "text": 'category name',
-    //             "emoji": true
-    //         },
-    //         "value": 'category id'
-    //     }];
-
-
-    // const body = {
-    //     blocks: [{
-    //         "type": "section",
-    //         "text": {
-    //             "type": "mrkdwn",
-    //             "text": "Pick a category"
-    //         },
-    //         "accessory": {
-    //             "type": "static_select",
-    //             "action_id": "select_category_action",
-    //             "placeholder": {
-    //                 "type": "plain_text",
-    //                 "text": "Select a category"
-    //             },
-    //             "options": options
-    //         }
-    //     }]
-    // }
-
-    const body = {
-        "response_type": "in_channel",
-        "text": "It's 80 degrees right now."
-    }
-
-    functions.logger.info("response", JSON.stringify(body), { structuredData: true });
-    response.send(body);
+    categoryService.listCategories().subscribe(data => {
+        const categoryBlock = templateService.createCategoryBlock(data);
+        functions.logger.info("response", categoryBlock);
+        response.send(categoryBlock);
+    });
 });
