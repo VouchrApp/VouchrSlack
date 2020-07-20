@@ -22,3 +22,15 @@ export enum METHOD {
     DELETE = "DELETE"
 }
 
+let errorResponseMap = new Map();
+errorResponseMap.set(ErrorCode.TIMEOUT, ResponseStatus.UNAUTHORIZED);
+errorResponseMap.set(ErrorCode.UNAUTHORIZED, ResponseStatus.UNAUTHORIZED);
+errorResponseMap.set(ErrorCode.ILLEGAL_ARGUMENTS, ResponseStatus.BAD_REQUEST);
+
+export const resolveCode = (code: ErrorCode | undefined): ResponseStatus => {
+    if (!!code && errorResponseMap.has(code)) {
+        return errorResponseMap.get(code)
+    }
+    return ResponseStatus.UNAUTHORIZED;
+}
+

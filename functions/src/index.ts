@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions';
 import { Command, ErrorCode, ResponseStatus, METHOD } from './enum';
 import { ValidationService } from './service/validation.service';
-import { Error } from './exception';
+import { Error, toResponse } from './exception';
 import { CategoryService } from './service/category.service';
 import { BlockKitBuilder } from './service/builder.block-kit';
 import { SigningInfo } from './model/model.category';
@@ -80,16 +80,11 @@ export const categoryCommand = functions.https.onRequest((request, response) => 
     try {
         const signingInfo = new SigningInfo(request.headers[slackRequestTime], request.body);
         validationService.validateRequest(functions.config().slack.signing.secret, signingInfo);
+        functions.logger.info("response", signingInfo);
     } catch (exception) {
         functions.logger.error(exception);
-        if (exception instanceof Error) {
-            const errorResponse = processException(exception);
-            const status = errorResponse.status;
-            delete errorResponse.status;
-            response.status(status).send(errorResponse);
-        } else {
-            response.status(ResponseStatus.INTERNAL_SERVER_ERROR).send(exception);
-        }
+        const errorResponse = toResponse(exception);
+        response.status(errorResponse.status).send(errorResponse.message)
         return;
     }
 

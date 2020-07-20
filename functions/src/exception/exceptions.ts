@@ -1,40 +1,45 @@
-import { ErrorCode } from "../enum";
+import { ErrorCode, ResponseStatus, resolveCode } from "../enum";
+import { ErrorResponse } from "../model/model.category";
 
-export class Error {
-    constructor(private _message: string, private _name: string, private _code?: number, private _stack?: string | undefined) { }
-
-    public get message(): string {
-        return this._message;
-    }
-
-    public get name(): string {
-        return this._name;
-    }
-
-    get code(): number | undefined {
-        return this._code;
-    }
-
-    public get cause(): string | undefined {
-        return this._stack;
-    }
+export interface Error {
+    message: string;
+    name: string;
+    code?: number;
+    cause?: any
 }
 
-export class TimeoutException extends Error {
+export class Exception implements Error {
+    constructor(public message: string, public name: string, public code?: number, public cause?: any) { }
+}
+
+export class TimeoutException extends Exception {
     constructor(message: string, stack?: string) {
         super(message, 'TimeoutException', ErrorCode.TIMEOUT, stack);
     }
 }
 
-export class UnauthorizedException extends Error {
+export class UnauthorizedException extends Exception {
     constructor(message: string, stack?: string) {
         super(message, 'UnauthorizedException', ErrorCode.UNAUTHORIZED, stack);
     }
 }
 
-export class IllegalArgumentException extends Error {
+export class IllegalArgumentException extends Exception {
     constructor(message: string, stack?: string) {
         super(message, 'IllegalArgumentException', ErrorCode.ILLEGAL_ARGUMENTS, stack);
     }
+}
+
+export const toResponse = (exception: Error): ErrorResponse => {
+    let response = {
+        message: exception.message,
+        status: resolveCode(exception.code),
+        code: exception.code
+    }
+
+    if (!response.code) {
+        delete response.code;
+    }
+    return response;
 }
 
