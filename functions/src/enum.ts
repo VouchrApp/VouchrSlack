@@ -5,7 +5,8 @@ export enum Command {
 
 export enum ErrorCode {
     TIMEOUT = 100,
-    UNAUTHORIZED = 400
+    UNAUTHORIZED = 400,
+    ILLEGAL_ARGUMENTS = 500
 }
 
 export enum ResponseStatus {

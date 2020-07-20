@@ -32,3 +32,9 @@ export class UnauthorizedException extends Error {
     }
 }
 
+export class IllegalArgumentException extends Error {
+    constructor(message: string, stack?: string) {
+        super(message, 'IllegalArgumentException', ErrorCode.ILLEGAL_ARGUMENTS, stack);
+    }
+}
+

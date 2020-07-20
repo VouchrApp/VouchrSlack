@@ -1,6 +1,6 @@
 import { Category } from "../model/model.category";
 
-export class TemplateService {
+export class BlockKitBuilder {
     public createCategoryBlock(categories: Array<Category>): any {
         const options = categories.map(category => ({
             "text": {
