@@ -21,7 +21,7 @@ export class SigningInfo {
         if (isNaN(timestamp)) {
             throw new IllegalArgumentException("expected number for timestamp");
         }
-        this._timestamp = parseInt(timestamp) * 1000;
+        this._timestamp = parseInt(timestamp);
 
         for (const [key, value] of Object.entries(body)) {
             console.log([key, value].join('='));

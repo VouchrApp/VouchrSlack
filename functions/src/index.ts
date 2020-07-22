@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions';
-import { Command, ResponseStatus, METHOD } from './enum';
+import { Command, ResponseStatus } from './enum';
 import { ValidationService } from './service/validation.service';
 import { toResponse } from './exception';
 import { CategoryService } from './service/category.service';
@@ -15,22 +15,37 @@ const categoryService = new CategoryService();
 const templateService = new BlockKitBuilder();
 
 
-export const eventSubscription = functions.https.onRequest((request, response) => {
+export const eventWebhook = functions.https.onRequest((request, response) => {
     functions.logger.info("Event subscription!", { structuredData: true });
     const { challenge } = request.body;
     functions.logger.info("challenge", challenge);
     response.send({ challenge });
 });
 
-export const templateCommand = functions.https.onRequest((request, response) => {
-    const { command } = request.body;
+export const interactivityWebhook = functions.https.onRequest((request, response) => {
 
-    if (METHOD.POST !== request.method || command !== Command.TEMPLATE) {
-        response.status(ResponseStatus.BAD_REQUEST).send({
-            "response_type": "in_channel",
-            "text": "invalid request",
-        });
+});
+
+export const templateWebhook = functions.https.onRequest((request, response) => {
+    const { command, text } = request.body;
+
+    const result = validateCommand(command, Command.TEMPLATE);
+    if (result) {
+        response.status(ResponseStatus.BAD_REQUEST).send(result);
         return;
+    }
+
+    try {
+        validateRequest(request);
+    } catch (exception) {
+        functions.logger.error(exception);
+        const { status, ...errorResponse } = toResponse(exception);
+        response.status(status).send(errorResponse)
+        return;
+    }
+
+    if (text) {
+        functions.logger.info(`template was entered with the text "${text}"`);
     }
 });
 
@@ -45,9 +60,20 @@ const validateCommand = (requestCommand: string, command: Command): any | undefi
     return result;
 }
 
+const validateRequest = request => {
+    const {
+        'x-slack-request-timestamp': timestamp,
+        'x-slack-signature': signature,
+    } = request.headers;
+
+    const { body } = request;
+    const signingInfo = new SigningInfo(timestamp, body, signature);
+    validationService.validateRequest(functions.config().slack.signing.secret, signingInfo);
+}
+
 
 export const categoryCommand = functions.https.onRequest((request, response) => {
-    const { command } = request.body;
+    const { command, text } = request.body;
     const result = validateCommand(command, Command.CATEGORY);
 
     if (result) {
@@ -55,19 +81,16 @@ export const categoryCommand = functions.https.onRequest((request, response) => 
         return;
     }
     try {
-        const {
-            'x-slack-request-timestamp': timestamp,
-            'x-slack-signature': signature,
-        } = request.headers;
-        const signingInfo = new SigningInfo(timestamp, request.body, signature);
-        validationService.validateRequest(functions.config().slack.signing.secret, signingInfo);
-        functions.logger.info("response", signingInfo);
+        validateRequest(request);
     } catch (exception) {
         functions.logger.error(exception);
-        const error = toResponse(exception);
-        const { status, ...errorResponse } = error;
+        const { status, ...errorResponse } = toResponse(exception);
         response.status(status).send(errorResponse)
         return;
+    }
+
+    if (text) {
+        functions.logger.info(`category was entered with the text "${text}"`);
     }
 
     categoryService.listCategories().subscribe(data => {
