@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions';
-import { Command, ErrorCode, ResponseStatus, METHOD } from './enum';
+import { Command, ResponseStatus, METHOD } from './enum';
 import { ValidationService } from './service/validation.service';
-import { Error, toResponse } from './exception';
+import { toResponse } from './exception';
 import { CategoryService } from './service/category.service';
 import { BlockKitBuilder } from './service/builder.block-kit';
 import { SigningInfo } from './model/model.category';
@@ -13,7 +13,7 @@ import { SigningInfo } from './model/model.category';
 const validationService = new ValidationService();
 const categoryService = new CategoryService();
 const templateService = new BlockKitBuilder();
-const slackRequestTime = 'x-slack-request-timestamp';
+
 
 export const eventSubscription = functions.https.onRequest((request, response) => {
     functions.logger.info("Event subscription!", { structuredData: true });
@@ -33,29 +33,6 @@ export const templateCommand = functions.https.onRequest((request, response) => 
         return;
     }
 });
-
-const processException = (error: Error) => {
-    let response = {
-        "response_type": "in_channel",
-        "text": "Something unexpected occured",
-        "status": ResponseStatus.INTERNAL_SERVER_ERROR
-    };
-
-    if (error.code === ErrorCode.TIMEOUT) {
-        response = {
-            "response_type": "in_channel",
-            "text": "Unable to process command. try again!",
-            "status": ResponseStatus.BAD_REQUEST
-        };
-    } else if (error.code === ErrorCode.UNAUTHORIZED) {
-        response = {
-            "response_type": "in_channel",
-            "text": "Unauthorized request",
-            "status": ResponseStatus.UNAUTHORIZED
-        };
-    }
-    return response
-}
 
 const validateCommand = (requestCommand: string, command: Command): any | undefined => {
     let result;
@@ -78,13 +55,18 @@ export const categoryCommand = functions.https.onRequest((request, response) => 
         return;
     }
     try {
-        const signingInfo = new SigningInfo(request.headers[slackRequestTime], request.body);
+        const {
+            'x-slack-request-timestamp': timestamp,
+            'x-slack-signature': signature,
+        } = request.headers;
+        const signingInfo = new SigningInfo(timestamp, request.body, signature);
         validationService.validateRequest(functions.config().slack.signing.secret, signingInfo);
         functions.logger.info("response", signingInfo);
     } catch (exception) {
         functions.logger.error(exception);
-        const errorResponse = toResponse(exception);
-        response.status(errorResponse.status).send(errorResponse.message)
+        const error = toResponse(exception);
+        const { status, ...errorResponse } = error;
+        response.status(status).send(errorResponse)
         return;
     }
 

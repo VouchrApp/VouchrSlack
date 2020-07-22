@@ -1,4 +1,4 @@
-import { ErrorCode, ResponseStatus, resolveCode } from "../enum";
+import { ErrorCode, resolveCode } from "../enum";
 import { ErrorResponse } from "../model/model.category";
 
 export interface Error {

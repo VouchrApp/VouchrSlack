@@ -17,7 +17,7 @@ export class SigningInfo {
     private _timestamp: number;
     private body: Array<String> = [];
 
-    constructor(timestamp: any, body: any) {
+    constructor(timestamp: any, body: any, private _signature: any) {
         if (isNaN(timestamp)) {
             throw new IllegalArgumentException("expected number for timestamp");
         }
@@ -35,5 +35,9 @@ export class SigningInfo {
 
     public getBody(): string {
         return this.body.join('&');
+    }
+
+    public get signature(): string {
+        return this._signature;
     }
 }

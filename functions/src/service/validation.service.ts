@@ -11,15 +11,15 @@ export class ValidationService {
     readonly requestTimeLimit: number = 60 * 5 * 1000;
 
     validateRequest(signingSecret: string, signingInfo: SigningInfo): void {
-        if (!signingInfo.timestamp) {
-            throw new IllegalArgumentException("signing info missing timestamp");
+        if (!signingInfo.timestamp || !signingInfo.signature) {
+            throw new IllegalArgumentException("invalid signing information");
         }
         const currentTime: number = new Date().getTime();
         const contents: string = [this.version, signingInfo.timestamp, signingInfo.getBody()].join(':');
         if (signingInfo.timestamp) {
             const timeStampToMilli = signingInfo.timestamp + this.requestTimeLimit;
             if (currentTime > timeStampToMilli) {
-                throw new TimeoutException("request was made a while ago");
+                throw new TimeoutException("Unauthorized request");
             } else {
                 console.log(`buffer for signature ${contents}`);
                 const secret = crypto.createHmac(this.signatureType, signingSecret)
@@ -27,12 +27,12 @@ export class ValidationService {
                     .digest(this.digestEncoding);
 
                 console.log('comparing signatures now');
-                if (crypto.timingSafeEqual(Buffer.from(signingSecret), Buffer.from(secret))) {
-                    throw new UnauthorizedException("unauthorized request");
+                if (crypto.timingSafeEqual(Buffer.from(signingInfo.signature), Buffer.from(secret))) {
+                    throw new UnauthorizedException("Unauthorized request");
                 }
             }
         } else {
-            throw new UnauthorizedException("unauthorized request");
+            throw new UnauthorizedException("Unauthorized request");
         }
     }
 }
