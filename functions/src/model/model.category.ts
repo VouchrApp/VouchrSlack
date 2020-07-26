@@ -1,5 +1,5 @@
 import { IllegalArgumentException } from "../exception"
-import { ErrorCode, ResponseStatus } from "../enum";
+import { ErrorCode } from "../enum";
 
 export interface Category {
     id: number;
@@ -10,7 +10,7 @@ export interface Category {
 export interface ErrorResponse {
     code?: ErrorCode;
     message: string;
-    status: ResponseStatus;
+    status: number;
 }
 
 export class SigningInfo {
