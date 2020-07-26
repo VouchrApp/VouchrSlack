@@ -13,6 +13,12 @@ export interface ErrorResponse {
     status: number;
 }
 
+export interface Template {
+    id: number;
+    headerText: string;
+    foregroundImage: string;
+}
+
 export class SigningInfo {
     private _timestamp: number;
     private body: Array<String> = [];

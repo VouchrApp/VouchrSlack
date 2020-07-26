@@ -11,7 +11,7 @@ import { SigningInfo } from "./model/model.category";
 
 const validationService = new ValidationService();
 const categoryService = new CategoryService();
-const templateService = new BlockKitBuilder();
+const blockKitBuilder = new BlockKitBuilder();
 
 export const getEvent = functions.https.onRequest((request, response) => {
   functions.logger.info("Event subscription!", { structuredData: true });
@@ -20,15 +20,32 @@ export const getEvent = functions.https.onRequest((request, response) => {
   response.send({ challenge });
 });
 
-export const interactivity = functions.https.onRequest(
-  (request, response) => {
-    const { payload } = request.body;
-    functions.logger.info("interactivity webhook", payload, {
-      structuredData: true,
-    });
+export const interactivity = functions.https.onRequest((request, response) => {
+  try {
+    functions.logger.info('about to execute interactivity code');
+    validateRequest(request);
+    const { payload, payload: { type, actions, response_url } } = request.body;
+
+    functions.logger.info("payload in request body", payload);
+    functions.logger.info("actions in payload", actions);
+
+    functions.logger.info("type in payload", type);
+    functions.logger.info("response url in payload", response_url);
+
+    // const { 'response_url': url } = request.body;
+    // const action = actions.find((act: { action_id: string; }) => act.action_id === blockKitBuilder.CATEGORY_BLOCK);
+    // const { value } = action.selected_option
+
+    // functions.logger.info(`category selected ${value}. Response url ${url}`);
+
     response.send(payload);
+
+  } catch (exception) {
+    functions.logger.error(exception);
+    const { status, ...errorResponse } = toResponse(exception);
+    response.status(status).send(errorResponse);
   }
-);
+});
 
 export const getTemplate = functions.https.onRequest((request, response) => {
   const { command, text } = request.body;
@@ -76,7 +93,7 @@ export const getCategory = functions.https.onRequest((request, response) => {
       functions.logger.info(`category was entered with the text "${text}"`);
     }
     categoryService.listCategories().subscribe((data) => {
-      const categoryBlock = templateService.createCategoryBlock(data);
+      const categoryBlock = blockKitBuilder.createCategoryBlock(data);
       functions.logger.info("response", categoryBlock);
       response.send(categoryBlock);
     });

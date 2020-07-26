@@ -1,6 +1,7 @@
 import { Category } from "../model/model.category";
 
 export class BlockKitBuilder {
+    public readonly CATEGORY_BLOCK: string = 'select_category';
     public createCategoryBlock(categories: Array<Category>): any {
         const options = categories.map(category => ({
             "text": {
@@ -12,22 +13,24 @@ export class BlockKitBuilder {
         }))
 
         return {
-            blocks: [{
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "Pick a category"
-                },
-                "accessory": {
-                    "type": "static_select",
-                    "action_id": "select_category_action",
-                    "placeholder": {
-                        "type": "plain_text",
-                        "text": "Select a category"
+            blocks: [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "Pick a category"
                     },
-                    "options": options
+                    "accessory": {
+                        "type": "static_select",
+                        "action_id": `${this.CATEGORY_BLOCK}`,
+                        "placeholder": {
+                            "type": "plain_text",
+                            "text": "Select a category"
+                        },
+                        "options": options,
+                    },
                 }
-            }]
+            ]
         }
     }
 }
