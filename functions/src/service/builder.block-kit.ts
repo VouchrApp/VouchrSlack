@@ -1,4 +1,4 @@
-import { Category } from "../model/model.category";
+import { Category, Template } from "../model/model.category";
 
 export class BlockKitBuilder {
     public readonly CATEGORY_BLOCK: string = 'select_category';
@@ -32,5 +32,12 @@ export class BlockKitBuilder {
                 }
             ]
         }
+    }
+
+    public createTemplateBlock(templates: Array<Template>): any {
+        return {
+            "ok": true,
+            "stuff": "This is good"
+        };
     }
 }

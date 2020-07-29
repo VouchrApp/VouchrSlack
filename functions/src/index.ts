@@ -5,6 +5,7 @@ import { toResponse, IllegalArgumentException } from "./exception";
 import { CategoryService } from "./service/category.service";
 import { BlockKitBuilder } from "./service/builder.block-kit";
 import { SigningInfo } from "./model/model.category";
+import { TemplateService } from "./service/api.service";
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -12,6 +13,7 @@ import { SigningInfo } from "./model/model.category";
 const validationService = new ValidationService();
 const categoryService = new CategoryService();
 const blockKitBuilder = new BlockKitBuilder();
+const templateService = new TemplateService();
 
 export const getEvent = functions.https.onRequest((request, response) => {
   functions.logger.info("Event subscription!", { structuredData: true });
@@ -22,23 +24,21 @@ export const getEvent = functions.https.onRequest((request, response) => {
 
 export const interactivity = functions.https.onRequest((request, response) => {
   try {
-    functions.logger.info('about to execute interactivity code');
     validateRequest(request);
-    const { payload, payload: { type, actions, response_url } } = request.body;
+    const { payload } = request.body;
+    const { actions, response_url } = JSON.parse(payload);
 
-    functions.logger.info("payload in request body", payload);
-    functions.logger.info("actions in payload", actions);
-
-    functions.logger.info("type in payload", type);
     functions.logger.info("response url in payload", response_url);
 
-    // const { 'response_url': url } = request.body;
-    // const action = actions.find((act: { action_id: string; }) => act.action_id === blockKitBuilder.CATEGORY_BLOCK);
-    // const { value } = action.selected_option
+    const action = actions.find((act: { action_id: string; }) => act.action_id === blockKitBuilder.CATEGORY_BLOCK);
+    const { value } = action.selected_option
 
-    // functions.logger.info(`category selected ${value}. Response url ${url}`);
-
-    response.send(payload);
+    templateService.listTemplates(value)
+      .subscribe((data) => {
+        const templateBlock = blockKitBuilder.createTemplateBlock(data);
+        functions.logger.info("response", templateBlock);
+        response.send(templateBlock);
+      });
 
   } catch (exception) {
     functions.logger.error(exception);
