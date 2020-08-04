@@ -1,6 +1,12 @@
-export enum Command {
-    CATEGORY = "/category",
-    TEMPLATE = "/template",
+export const Command = {
+    Category: '/category',
+    Template: '/template',
+} as const;
+
+export type Command = typeof Command[keyof typeof Command]
+
+export const findCommand = (command: string): Command | undefined => {
+    return Object.values(Command).find(element => element === command);
 }
 
 export enum ErrorCode {
