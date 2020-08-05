@@ -6,7 +6,7 @@ import { CategoryService } from "./service/category.service";
 import { BlockKitBuilder } from "./service/builder.block-kit";
 import { SigningInfo } from "./model/model.category";
 import { TemplateService } from "./service/api.service";
-import { from, Observable } from "rxjs";
+import axios from 'axios';
 import * as status from "http-status";
 
 
@@ -93,7 +93,7 @@ export const getCategory = functions.https.onRequest((request, response) => {
       throw new IllegalArgumentException(`invalid command supplied ${command}`);
     }
 
-    await publishCommand(command, text, response_url, {
+    publishCommand(command, text, response_url, {
       id: user_id,
       name: user_name
     });
@@ -105,6 +105,27 @@ export const getCategory = functions.https.onRequest((request, response) => {
     return;
   }
 });
+
+export const categoryPubSub = functions.pubsub.topic('command').onPublish((message, context) => {
+  const { text, url, command } = message.json;
+  try {
+    if (Command.Category == command) {
+      if (!text) {
+        categoryService.listCategories()
+          .subscribe((data) => {
+            const categoryBlock = blockKitBuilder.createCategoryBlock(data);
+            functions.logger.info("response", categoryBlock);
+            axios.post(url, categoryService);
+          });
+      } else {
+        // get templates from category
+      }
+    }
+  } catch (exception) {
+    functions.logger.error(exception);
+  }
+
+})
 
 
 const publishCommand = (command: string, text: string, url: string, user: any) => {
@@ -122,23 +143,4 @@ const publishCommand = (command: string, text: string, url: string, user: any) =
   const dataBuffer = Buffer.from(JSON.stringify(message));
   pubSubClient.topic(topic).publish(dataBuffer, attributes);
 }
-
-const handleCommand = () => {
-  const subscription = pubSubClient.subscription(subscriptionName);
-  subscription.on('message', (message: any) => {
-    const { command } = message.data;
-    if (Command.Category === command) {
-
-      categoryService.listCategories()
-        .subscribe((data) => {
-          const categoryBlock = blockKitBuilder.createCategoryBlock(data);
-          functions.logger.info("response", categoryBlock);
-        });
-    }
-    //send message to url
-    message.ack();
-  });
-}
-
-handleCommand();
 
