@@ -8,6 +8,8 @@ import { SigningInfo } from "./model/model.category";
 import { TemplateService } from "./service/api.service";
 import axios from 'axios';
 import * as status from "http-status";
+import { of } from "rxjs";
+import { catchError } from 'rxjs/operators';
 
 
 // // Start writing Firebase Functions
@@ -19,8 +21,7 @@ const blockKitBuilder = new BlockKitBuilder();
 const templateService = new TemplateService();
 const { PubSub } = require('@google-cloud/pubsub');
 const pubSubClient = new PubSub();
-const topic = 'category';
-const subscriptionName = 'getCategory';
+const topic = 'command';
 
 export const getEvent = functions.https.onRequest((request, response) => {
   functions.logger.info("Event subscription!", { structuredData: true });
@@ -114,12 +115,15 @@ export const categoryPubSub = functions.pubsub.topic('command').onPublish((messa
         categoryService.listCategories()
           .subscribe((data) => {
             const categoryBlock = blockKitBuilder.createCategoryBlock(data);
-            functions.logger.info("response", categoryBlock);
-            axios.post(url, categoryService);
-          });
+            axios.post(url, categoryBlock);
+          },
+            error => console.log(error)
+          );
       } else {
         // get templates from category
       }
+    } else if (Command.Template == command) {
+
     }
   } catch (exception) {
     functions.logger.error(exception);
