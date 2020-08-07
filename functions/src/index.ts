@@ -7,9 +7,7 @@ import { BlockKitBuilder } from "./service/builder.block-kit";
 import { SigningInfo } from "./model/model.category";
 import { TemplateService } from "./service/api.service";
 import axios from 'axios';
-import * as status from "http-status";
-import { of } from "rxjs";
-import { catchError } from 'rxjs/operators';
+import * as httpStatus from "http-status";
 
 
 // // Start writing Firebase Functions
@@ -55,25 +53,6 @@ export const interactivity = functions.https.onRequest((request, response) => {
   }
 });
 
-export const getTemplate = functions.https.onRequest((request, response) => {
-  const { command, text } = request.body;
-
-  try {
-    if (!findCommand(command)) {
-      throw new IllegalArgumentException(`invalid command supplied ${command}`);
-    }
-    validateRequest(request);
-    if (text) {
-      functions.logger.info(`template was entered with the text "${text}"`);
-    }
-  } catch (exception) {
-    functions.logger.error(exception);
-    const { status, ...errorResponse } = toResponse(exception);
-    response.status(status).send(errorResponse);
-    return;
-  }
-
-});
 
 const validateRequest = (request: functions.https.Request) => {
   const {
@@ -86,8 +65,9 @@ const validateRequest = (request: functions.https.Request) => {
   validationService.validateRequest(functions.config().slack.signing.secret, signingInfo);
 };
 
-export const getCategory = functions.https.onRequest((request, response) => {
+export const resolveCommand = functions.https.onRequest((request, response) => {
   try {
+
     validateRequest(request);
     const { command, text, response_url, user_name, user_id } = request.body;
     if (!findCommand(command)) {
@@ -98,7 +78,7 @@ export const getCategory = functions.https.onRequest((request, response) => {
       id: user_id,
       name: user_name
     });
-    response.sendStatus(status.OK);
+    response.sendStatus(httpStatus.OK);
   } catch (exception) {
     functions.logger.error(exception);
     const { status, ...errorResponse } = toResponse(exception);
@@ -107,29 +87,34 @@ export const getCategory = functions.https.onRequest((request, response) => {
   }
 });
 
-export const categoryPubSub = functions.pubsub.topic('command').onPublish((message, context) => {
+export const resolveCommandPubsub = functions.pubsub.topic(topic).onPublish((message, context) => {
   const { text, url, command } = message.json;
   try {
-    if (Command.Category == command) {
+    if (Command.Category === command) {
       if (!text) {
         categoryService.listCategories()
           .subscribe((data) => {
-            const categoryBlock = blockKitBuilder.createCategoryBlock(data);
-            axios.post(url, categoryBlock);
+            // tslint:disable-next-line:no-floating-promises
+            postRequest(url, blockKitBuilder.createCategoryBlock(data))
           },
             error => console.log(error)
           );
-      } else {
-        // get templates from category
       }
-    } else if (Command.Template == command) {
-
     }
   } catch (exception) {
     functions.logger.error(exception);
   }
 
 })
+
+
+const postRequest = async (url: string, payload: any) => {
+  try {
+    await axios.post(url, payload)
+  } catch (exception) {
+    console.log(exception);
+  }
+}
 
 
 const publishCommand = (command: string, text: string, url: string, user: any) => {
