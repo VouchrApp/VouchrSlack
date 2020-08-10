@@ -1,6 +1,6 @@
-import { ErrorCode } from "../enum";
-import { ErrorResponse } from "../model/model.category";
 import * as status from "http-status";
+import { ErrorCode } from "../model/enum";
+import { ErrorResponse } from "../model/model";
 
 export interface Error {
   message: string;

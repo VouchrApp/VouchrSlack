@@ -1,22 +1,28 @@
+import Axios from "axios";
 import * as functions from "firebase-functions";
-import { findCommand, Command } from "./enum";
-import { ValidationService } from "./service/validation.service";
-import { toResponse, IllegalArgumentException } from "./exception";
-import { CategoryService } from "./service/category.service";
-import { BlockKitBuilder } from "./service/builder.block-kit";
-import { SigningInfo } from "./model/model.category";
-import { TemplateService } from "./service/api.service";
-import axios from 'axios';
 import * as httpStatus from "http-status";
+import {
+  IllegalArgumentException,
+  InvalidMethodException, toResponse
+} from "./exception";
+import { Command, findCommand, METHOD, SigningInfo } from "./model";
+import {
+  ApiService, BlockKitBuilder, CategoryService, TemplateService,
+
+
+  ValidationService
+} from "./service";
+
 
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
 
 const validationService = new ValidationService();
-const categoryService = new CategoryService();
+const apiService = new ApiService();
+const categoryService = new CategoryService(apiService);
 const blockKitBuilder = new BlockKitBuilder();
-const templateService = new TemplateService();
+const templateService = new TemplateService(apiService);
 const { PubSub } = require('@google-cloud/pubsub');
 const pubSubClient = new PubSub();
 const topic = 'command';
@@ -28,7 +34,7 @@ export const getEvent = functions.https.onRequest((request, response) => {
   response.send({ challenge });
 });
 
-export const interactivity = functions.https.onRequest((request, response) => {
+export const resolveInteraction = functions.https.onRequest((request, response) => {
   try {
     validateRequest(request);
     const { payload } = request.body;
@@ -39,7 +45,7 @@ export const interactivity = functions.https.onRequest((request, response) => {
     const action = actions.find((act: { action_id: string; }) => act.action_id === blockKitBuilder.CATEGORY_BLOCK);
     const { value } = action.selected_option
 
-    templateService.listTemplates(value)
+    templateService.listTemplates(value, { 'X-Vouchr-ClientID': functions.config().vouchr.key })
       .subscribe((data) => {
         const templateBlock = blockKitBuilder.createTemplateBlock(data);
         functions.logger.info("response", templateBlock);
@@ -67,7 +73,9 @@ const validateRequest = (request: functions.https.Request) => {
 
 export const resolveCommand = functions.https.onRequest((request, response) => {
   try {
-
+    if (request.method !== METHOD.POST) {
+      throw new InvalidMethodException(`method type ${request.method} not supported`)
+    }
     validateRequest(request);
     const { command, text, response_url, user_name, user_id } = request.body;
     if (!findCommand(command)) {
@@ -78,7 +86,7 @@ export const resolveCommand = functions.https.onRequest((request, response) => {
       id: user_id,
       name: user_name
     });
-    response.sendStatus(httpStatus.OK);
+    response.status(httpStatus.OK).send();
   } catch (exception) {
     functions.logger.error(exception);
     const { status, ...errorResponse } = toResponse(exception);
@@ -89,13 +97,18 @@ export const resolveCommand = functions.https.onRequest((request, response) => {
 
 export const resolveCommandPubsub = functions.pubsub.topic(topic).onPublish((message, context) => {
   const { text, url, command } = message.json;
+  functions.logger.info("message from pubsub", message);
   try {
     if (Command.Category === command) {
       if (!text) {
-        categoryService.listCategories()
+        categoryService.listCategories({ 'X-Vouchr-ClientID': functions.config().vouchr.key })
           .subscribe((data) => {
+            functions.logger.info(data);
             // tslint:disable-next-line:no-floating-promises
-            postRequest(url, blockKitBuilder.createCategoryBlock(data))
+            apiService.post(url, blockKitBuilder.createCategoryBlock(data))
+              .subscribe(
+                payload => functions.logger.info("post was successful", payload),
+              )
           },
             error => console.log(error)
           );
@@ -106,15 +119,6 @@ export const resolveCommandPubsub = functions.pubsub.topic(topic).onPublish((mes
   }
 
 })
-
-
-const postRequest = async (url: string, payload: any) => {
-  try {
-    await axios.post(url, payload)
-  } catch (exception) {
-    console.log(exception);
-  }
-}
 
 
 const publishCommand = (command: string, text: string, url: string, user: any) => {
@@ -133,3 +137,12 @@ const publishCommand = (command: string, text: string, url: string, user: any) =
   pubSubClient.topic(topic).publish(dataBuffer, attributes);
 }
 
+Axios.interceptors.request.use(request => {
+  functions.logger.info('Starting Request', request)
+  return request
+})
+
+Axios.interceptors.response.use(response => {
+  functions.logger.info('Response:', response)
+  return response
+})

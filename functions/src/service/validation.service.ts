@@ -1,6 +1,6 @@
 import * as crypto from "crypto";
-import { UnauthorizedException, IllegalArgumentException } from "../exception/exceptions";
-import { SigningInfo } from "../model/model.category";
+import { IllegalArgumentException, UnauthorizedException } from "../exception/exceptions";
+import { SigningInfo } from "../model/model";
 
 export class ValidationService {
     readonly version: string = "v0";

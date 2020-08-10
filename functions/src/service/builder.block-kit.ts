@@ -1,4 +1,4 @@
-import { Category, Template } from "../model/model.category";
+import { Category, Template } from "../model/model";
 
 export class BlockKitBuilder {
     public readonly CATEGORY_BLOCK: string = 'select_category';

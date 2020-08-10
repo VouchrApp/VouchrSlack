@@ -3,7 +3,7 @@ export const Command = {
     Template: '/template',
 } as const;
 
-export type Command = typeof Command[keyof typeof Command]
+export type Command = typeof Command[keyof typeof Command];
 
 export const findCommand = (command: string): Command | undefined => {
     return Object.values(Command).find(element => element === command);
@@ -16,11 +16,13 @@ export enum ErrorCode {
 }
 
 
-export enum METHOD {
-    GET = "GET",
-    POST = "POST",
-    PUT = "PUT",
-    DELETE = "DELETE",
-}
+export const METHOD = {
+    GET: 'GET',
+    POST: "POST",
+    PUT: "PUT",
+    DELETE: "DELETE"
+} as const;
+
+export type METHOD = typeof METHOD[keyof typeof METHOD]
 
 

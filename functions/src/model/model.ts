@@ -1,5 +1,5 @@
-import { IllegalArgumentException } from "../exception"
-import { ErrorCode } from "../enum";
+import { IllegalArgumentException } from "../exception";
+import { ErrorCode } from "./enum";
 
 export interface Category {
     id: number;
@@ -17,6 +17,17 @@ export interface Template {
     id: number;
     headerText: string;
     foregroundImage: string;
+}
+
+export interface PagedResponse<T> {
+    lastPage?: boolean
+    paging?: Page;
+    items?: Array<T>;
+}
+
+interface Page {
+    next?: string;
+    current?: string;
 }
 
 export class SigningInfo {
