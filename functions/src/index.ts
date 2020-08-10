@@ -45,7 +45,7 @@ export const resolveInteraction = functions.https.onRequest((request, response) 
     const action = actions.find((act: { action_id: string; }) => act.action_id === blockKitBuilder.CATEGORY_BLOCK);
     const { value } = action.selected_option
 
-    templateService.listTemplates(value, { 'X-Vouchr-ClientID': functions.config().vouchr.key })
+    templateService.listTemplates(value)
       .subscribe((data) => {
         const templateBlock = blockKitBuilder.createTemplateBlock(data);
         functions.logger.info("response", templateBlock);
@@ -101,7 +101,7 @@ export const resolveCommandPubsub = functions.pubsub.topic(topic).onPublish((mes
   try {
     if (Command.Category === command) {
       if (!text) {
-        categoryService.listCategories({ 'X-Vouchr-ClientID': functions.config().vouchr.key })
+        categoryService.listCategories()
           .subscribe((data) => {
             functions.logger.info(data);
             // tslint:disable-next-line:no-floating-promises
@@ -110,7 +110,7 @@ export const resolveCommandPubsub = functions.pubsub.topic(topic).onPublish((mes
                 payload => functions.logger.info("post was successful", payload),
               )
           },
-            error => console.log(error)
+            error => console.log(`Error while getting data ${error}`)
           );
       }
     }
