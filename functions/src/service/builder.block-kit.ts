@@ -1,4 +1,4 @@
-import { Category, Template } from "../model/model";
+import { Category, Template } from "../vouchr/model";
 
 export class BlockKitBuilder {
     public readonly CATEGORY_BLOCK: string = 'select_category';

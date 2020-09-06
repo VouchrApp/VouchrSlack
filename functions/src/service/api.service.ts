@@ -2,8 +2,11 @@ import { Axios } from 'axios-observable';
 import { AxiosObservable } from 'axios-observable/dist/axios-observable.interface';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { api, baseUrl, defaultHeaders } from "../model";
-import { Category, Template } from "../model/model";
+import { api, baseUrl, defaultHeaders } from "../vouchr";
+import { Category, Template } from "../vouchr/model";
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export class CategoryService {
     constructor(private apiService: ApiService) { }
@@ -21,7 +24,6 @@ export class TemplateService {
     constructor(private apiService: ApiService) { }
     public listTemplates(categoryId: number,): Observable<Array<Template>> {
         const allHeaders = { 'Content-Type': 'application/json', ...defaultHeaders };
-        console.log(`request sent with headers ${allHeaders}`);
         return this.apiService
             .get([baseUrl, api.templates(categoryId)].join('/'), allHeaders)
             .pipe(
@@ -33,17 +35,12 @@ export class TemplateService {
 
 export class ApiService {
     public post(url: string, data: any, headers?: { [name: string]: string }): Observable<any> {
-        const payload = JSON.stringify(data);
-        console.log(`request sent to url ${url}`);
-        console.log(`request sent with payload ${payload}`);
-        console.log(`request sent with headers ${headers}`);
-        return Axios.post(url, payload, {
+        return Axios.post(url, JSON.stringify(data), {
             headers: headers
         })
     }
 
     public get(url: string, headers?: { [name: string]: string }): AxiosObservable<any> {
-        console.log(`request sent to url ${url}`);
         return Axios.get(url, {
             headers: headers
         })

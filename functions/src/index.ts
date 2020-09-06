@@ -5,12 +5,9 @@ import {
   IllegalArgumentException,
   InvalidMethodException, toResponse
 } from "./exception";
-import { Command, findCommand, METHOD, SigningInfo } from "./model";
+import { Command, findCommand, METHOD, SigningInfo } from "./vouchr";
 import {
-  ApiService, BlockKitBuilder, CategoryService, TemplateService,
-
-
-  ValidationService
+  ApiService, BlockKitBuilder, CategoryService, TemplateService, ValidationService
 } from "./service";
 
 
@@ -25,9 +22,9 @@ const blockKitBuilder = new BlockKitBuilder();
 const templateService = new TemplateService(apiService);
 const { PubSub } = require('@google-cloud/pubsub');
 const pubSubClient = new PubSub();
-const topic = 'command';
+const topic = 'command' as string;
 
-export const getEvent = functions.https.onRequest((request, response) => {
+export const resolveEvent = functions.https.onRequest((request, response) => {
   functions.logger.info("Event subscription!", { structuredData: true });
   const { challenge } = request.body;
   functions.logger.info("challenge", challenge);
@@ -81,8 +78,7 @@ export const resolveCommand = functions.https.onRequest((request, response) => {
     if (!findCommand(command)) {
       throw new IllegalArgumentException(`invalid command supplied ${command}`);
     }
-
-    publishCommand(command, text, response_url, {
+    publishCommand(command, text as string, response_url, {
       id: user_id,
       name: user_name
     });
@@ -95,7 +91,7 @@ export const resolveCommand = functions.https.onRequest((request, response) => {
   }
 });
 
-export const resolveCommandPubsub = functions.pubsub.topic(topic).onPublish((message, context) => {
+export const handleCommand = functions.pubsub.topic(topic).onPublish((message, context) => {
   const { text, url, command } = message.json;
   functions.logger.info("message from pubsub", message);
   try {
@@ -104,7 +100,6 @@ export const resolveCommandPubsub = functions.pubsub.topic(topic).onPublish((mes
         categoryService.listCategories()
           .subscribe((data) => {
             functions.logger.info(data);
-            // tslint:disable-next-line:no-floating-promises
             apiService.post(url, blockKitBuilder.createCategoryBlock(data))
               .subscribe(
                 payload => functions.logger.info("post was successful", payload),
@@ -129,12 +124,8 @@ const publishCommand = (command: string, text: string, url: string, user: any) =
     user: user
   };
 
-  const attributes = {
-    key: functions.config().vouchr.key
-  };
-
   const dataBuffer = Buffer.from(JSON.stringify(message));
-  pubSubClient.topic(topic).publish(dataBuffer, attributes);
+  pubSubClient.topic(topic).publish(dataBuffer);
 }
 
 Axios.interceptors.request.use(request => {
