@@ -5,15 +5,12 @@ import {
   IllegalArgumentException,
   InvalidMethodException, toResponse
 } from "./exception";
-import { Command, findCommand, METHOD, SigningInfo } from "./vouchr";
+import { Command, findCommand, METHOD, SigningInfo, VouchrErrorResponse } from "./vouchr";
 import {
   BlockKitBuilder, CategoryService, TemplateService, ValidationService
 } from "./service";
-
-// import { config } from "dotenv";
-// import { resolve } from "path"
-
-
+import { AxiosError } from "axios";
+import { HttpsError } from "firebase-functions/lib/providers/https";
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -25,14 +22,11 @@ const templateService = new TemplateService();
 const { PubSub } = require('@google-cloud/pubsub');
 const pubSubClient = new PubSub();
 const topic = 'command' as string;
-// config({ path: resolve(__dirname, "../.env") });
 
 export const resolveEvent = functions.https.onRequest((request, response) => {
   functions.logger.info("Event subscription!", { structuredData: true });
   const { challenge } = request.body;
   functions.logger.info("challenge", challenge);
-  // const cid = process.env.CID
-  // response.send({ cid });
   response.status(httpStatus.OK).send();
 });
 
@@ -74,7 +68,6 @@ const validateRequest = (request: functions.https.Request) => {
 };
 
 export const resolveCommand = functions.https.onRequest((request, response) => {
-  functions.logger.log(`environment cid ${process.env.CID}`);
   try {
     if (request.method !== METHOD.POST) {
       throw new InvalidMethodException(`method type ${request.method} not supported`)
@@ -105,15 +98,13 @@ export const handleCommand = functions.pubsub.topic(topic).onPublish((message, c
     if (Command.Category === command) {
       if (!text) {
         categoryService.listCategories()
-          .subscribe((data) => {
-            functions.logger.info(data);
-            Axios.post(url, blockKitBuilder.createCategoryBlock(data))
-              .subscribe(
-                payload => functions.logger.info("post was successful", payload),
-              )
-          },
-            error => console.log(`Error while getting data ${error}`)
-          );
+          .subscribe(
+            data => Axios.post(url, blockKitBuilder.createCategoryBlock(data)),
+            (error: AxiosError<VouchrErrorResponse>) => {
+              if (error.response?.status === httpStatus.BAD_REQUEST) {
+
+              }
+            });
       }
     }
   } catch (exception) {

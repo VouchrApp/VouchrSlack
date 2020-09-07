@@ -2,7 +2,7 @@ import { Category, Template } from "../vouchr/model";
 
 export class BlockKitBuilder {
     public readonly CATEGORY_BLOCK: string = 'select_category';
-    public createCategoryBlock(categories: Array<Category>): any {
+    public createCategoryBlock(categories: Array<Category>): object {
         const options = categories.map(category => ({
             "text": {
                 "type": "plain_text",
@@ -10,7 +10,7 @@ export class BlockKitBuilder {
                 "emoji": true,
             },
             "value": `${category.id}`
-        }))
+        }));
 
         return {
             blocks: [

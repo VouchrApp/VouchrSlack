@@ -3,9 +3,11 @@ import { config } from "dotenv";
 import { resolve } from "path"
 
 config({ path: resolve(__dirname, "../../.env") });
+const pageSize = 10
 
 const params: { [name: string]: any } = {
-    'cid': process.env.CID
+    'cid': process.env.CID,
+    'pageSize': pageSize
 }
 
 export const vouchrAxois = Axios.create({
@@ -16,14 +18,15 @@ export const vouchrAxois = Axios.create({
     }
 });
 
-vouchrAxois.interceptors.request.use(request => {
-    const { url } = request
+vouchrAxois.interceptors.request.use(config => {
+    const { url } = config
 
     const queryParams = Object.keys(params).map(id => [id, params[id]].join('=')).join('&')
-    request.url = url?.concat(`?${queryParams}`)
+    config.url = url?.concat(`?${queryParams}`)
 
-    console.log(`request url ${request.url}`)
-    return request;
+    const completeUrl = [config.baseURL, config.url].join('/');
+    console.log(`request url ${completeUrl}`);
+    return config;
 });
 
 vouchrAxois.interceptors.response.use(response => {

@@ -25,6 +25,20 @@ export interface PagedResponse<T> {
     items?: Array<T>;
 }
 
+export interface VouchrErrorResponse {
+    errorMessage?: string
+    error: ErrorDetails
+}
+
+export interface ErrorDetails {
+    errorEnum: string;
+    httpStatus: number;
+    code: number;
+    message?: string;
+    displayTitle?: string;
+    displayDetail?: string;
+}
+
 interface Page {
     next?: string;
     current?: string;
