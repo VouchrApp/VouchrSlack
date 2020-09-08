@@ -25,4 +25,11 @@ export const METHOD = {
 
 export type METHOD = typeof METHOD[keyof typeof METHOD]
 
+export const SlackResponseType = {
+    PUBLIC: 'in_channel',
+    PRIVATE: 'ephemeral'
+} as const;
+
+export type SlackResponseType = typeof SlackResponseType[keyof typeof SlackResponseType];
+
 

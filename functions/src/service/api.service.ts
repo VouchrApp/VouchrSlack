@@ -1,13 +1,18 @@
 
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { path, vouchrAxois, Category, Template } from "../vouchr";
+import { Category, Template, PagedResponse } from "../vouchr";
+import { capitalize, path, vouchrAxois } from '../vouchr/util';
 
 export class CategoryService {
-    public listCategories(): Observable<Array<Category>> {
-        return vouchrAxois.get(path.categories)
+    public listCategories(): Observable<Array<Category> | undefined> {
+        return vouchrAxois.get<PagedResponse<Category>>(path.categories)
             .pipe(
-                map(response => response.data.items)
+                map(response => {
+                    const { items } = response.data;
+                    items?.forEach(item => capitalize(item.title))
+                    return items;
+                })
             )
 
     }

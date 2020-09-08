@@ -25,6 +25,11 @@ export interface PagedResponse<T> {
     items?: Array<T>;
 }
 
+export interface Page {
+    next?: string;
+    current?: string;
+}
+
 export interface VouchrError {
     errorMessage?: string
     error: ErrorDetails
@@ -39,10 +44,6 @@ export interface ErrorDetails {
     displayDetail?: string;
 }
 
-interface Page {
-    next?: string;
-    current?: string;
-}
 
 export class SigningInfo {
     private _timestamp: number;

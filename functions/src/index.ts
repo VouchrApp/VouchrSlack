@@ -1,16 +1,10 @@
 import Axios from "axios-observable";
 import * as functions from "firebase-functions";
 import * as httpStatus from "http-status";
-import {
-  IllegalArgumentException,
-  InvalidMethodException, toResponse
-} from "./exception";
-import { Command, findCommand, METHOD, SigningInfo, VouchrError } from "./vouchr";
-import {
-  BlockKitBuilder, CategoryService, TemplateService, ValidationService
-} from "./service";
+import { IllegalArgumentException, InvalidMethodException, toResponse } from "./exception";
+import { Command, findCommand, METHOD, SigningInfo, VouchrError, SlackResponseType } from "./vouchr";
+import { BlockKitBuilder, CategoryService, TemplateService, ValidationService } from "./service";
 import { AxiosError } from "axios";
-import { HttpsError } from "firebase-functions/lib/providers/https";
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -94,26 +88,33 @@ export const resolveCommand = functions.https.onRequest((request, response) => {
 export const handleCommand = functions.pubsub.topic(topic).onPublish((message, context) => {
   const { text, url, command } = message.json;
   functions.logger.info("message from pubsub", message);
-  try {
-    if (Command.Category === command) {
-      if (!text) {
-        categoryService.listCategories()
-          .subscribe(
-            data => Axios.post(url, blockKitBuilder.createCategoryBlock(data)),
-            (error: AxiosError<VouchrError>) => {
-              if (error.response?.status === httpStatus.BAD_REQUEST) {
-
-              }
-            });
-      }
+  if (Command.Category === command) {
+    if (!text) {
+      categoryService.listCategories()
+        .subscribe(
+          data => postResponse(url, blockKitBuilder.createCategoryBlock(data)),
+          (error: AxiosError<VouchrError>) => {
+            if (error.response?.status === httpStatus.BAD_REQUEST) {
+              functions.logger.error("invalid request sent", JSON.stringify(error.response.data));
+              postResponse(url, {
+                "response_type": SlackResponseType.PRIVATE,
+                "text": "Unable to retrieve categories. Please try again!"
+              })
+            }
+          });
     }
-  } catch (exception) {
-    functions.logger.error(exception);
   }
-
 })
 
-const publishCommand = (command: string, text: string, url: string, user: any) => {
+const postResponse = (url: string, data: object) => {
+  Axios.post(url, data)
+    .subscribe(
+      response => functions.logger.log("message was successfully sent", JSON.stringify(response.data)),
+      error => functions.logger.error("message was unsuccessfully sent", JSON.stringify(error.response.data))
+    )
+}
+
+const publishCommand = (command: string, text: string, url: string, user: object) => {
   const message = {
     text: text,
     command: command,

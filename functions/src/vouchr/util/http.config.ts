@@ -2,7 +2,7 @@ import Axios from "axios-observable";
 import { config } from "dotenv";
 import { resolve } from "path"
 
-config({ path: resolve(__dirname, "../../.env") });
+config({ path: resolve(__dirname, "../../../.env") });
 const pageSize = 10
 
 const params: { [name: string]: any } = {
@@ -18,21 +18,17 @@ export const vouchrAxois = Axios.create({
     }
 });
 
-vouchrAxois.interceptors.request.use(config => {
-    const { url } = config
+vouchrAxois.interceptors.request.use(request => {
+    const { url } = request
 
     const queryParams = Object.keys(params).map(id => [id, params[id]].join('=')).join('&')
-    config.url = url?.concat(`?${queryParams}`)
+    request.url = url?.concat(`?${queryParams}`)
 
-    const completeUrl = [config.baseURL, config.url].join('/');
+    const completeUrl = [request.baseURL, request.url].join('/');
     console.log(`request url ${completeUrl}`);
-    return config;
+    return request;
 });
 
-vouchrAxois.interceptors.response.use(response => {
-    console.log(response);
-    return response;
-})
 
 export const path = {
     categories: 'template/categories',
