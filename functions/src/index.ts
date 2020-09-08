@@ -5,7 +5,7 @@ import {
   IllegalArgumentException,
   InvalidMethodException, toResponse
 } from "./exception";
-import { Command, findCommand, METHOD, SigningInfo, VouchrErrorResponse } from "./vouchr";
+import { Command, findCommand, METHOD, SigningInfo, VouchrError } from "./vouchr";
 import {
   BlockKitBuilder, CategoryService, TemplateService, ValidationService
 } from "./service";
@@ -100,7 +100,7 @@ export const handleCommand = functions.pubsub.topic(topic).onPublish((message, c
         categoryService.listCategories()
           .subscribe(
             data => Axios.post(url, blockKitBuilder.createCategoryBlock(data)),
-            (error: AxiosError<VouchrErrorResponse>) => {
+            (error: AxiosError<VouchrError>) => {
               if (error.response?.status === httpStatus.BAD_REQUEST) {
 
               }
@@ -112,7 +112,6 @@ export const handleCommand = functions.pubsub.topic(topic).onPublish((message, c
   }
 
 })
-
 
 const publishCommand = (command: string, text: string, url: string, user: any) => {
   const message = {

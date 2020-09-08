@@ -25,7 +25,7 @@ export interface PagedResponse<T> {
     items?: Array<T>;
 }
 
-export interface VouchrErrorResponse {
+export interface VouchrError {
     errorMessage?: string
     error: ErrorDetails
 }
