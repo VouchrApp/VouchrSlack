@@ -10,7 +10,7 @@ export class CategoryService {
             .pipe(
                 map(response => {
                     const { items } = response.data;
-                    items?.forEach(item => capitalize(item.title))
+                    items?.forEach(item => item.title = capitalize(item.title))
                     return items;
                 })
             )
@@ -19,11 +19,15 @@ export class CategoryService {
 }
 
 export class TemplateService {
-    public listTemplates(categoryId: number): Observable<Array<Template>> {
+    public listTemplates(categoryId: number): Observable<Array<Template> | undefined> {
         return vouchrAxois
-            .get(path.templates(categoryId))
+            .get<PagedResponse<Template>>(path.templates(categoryId))
             .pipe(
-                map(response => response.data)
+                map(response => {
+                    const { items } = response.data;
+                    items?.forEach(item => item.headerText = capitalize(item.headerText))
+                    return items;
+                })
             )
 
     }

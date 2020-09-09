@@ -34,7 +34,7 @@ export class BlockKitBuilder {
         }
     }
 
-    public createTemplateBlock(templates: Array<Template>): any {
+    public createTemplateBlock(templates: Array<Template> = []): object {
         return {
             "ok": true,
             "stuff": "This is good"

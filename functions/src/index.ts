@@ -5,17 +5,32 @@ import { IllegalArgumentException, InvalidMethodException, toResponse } from "./
 import { Command, findCommand, METHOD, SigningInfo, VouchrError, SlackResponseType } from "./vouchr";
 import { BlockKitBuilder, CategoryService, TemplateService, ValidationService } from "./service";
 import { AxiosError } from "axios";
+import { batchSettings } from "./vouchr/util";
+const { PubSub } = require('@google-cloud/pubsub');
 
-// // Start writing Firebase Functions
-// // https://firebase.google.com/docs/functions/typescript
 
-const validationService = new ValidationService();
+let validationService: ValidationService;
+let templateService: TemplateService;
+
 const categoryService = new CategoryService();
 const blockKitBuilder = new BlockKitBuilder();
-const templateService = new TemplateService();
-const { PubSub } = require('@google-cloud/pubsub');
 const pubSubClient = new PubSub();
-const topic = 'command' as string;
+const commandTopic = 'handle-command' as string;
+const templateInteraction = 'handle-template' as string;
+
+const validateRequest = (request: functions.https.Request) => {
+  const {
+    "x-slack-request-timestamp": timestamp,
+    "x-slack-signature": signature,
+  } = request.headers;
+
+  const { body } = request;
+  const signingInfo = new SigningInfo(timestamp, body, signature);
+  if (!validationService) {
+    validationService = new ValidationService();
+  }
+  validationService.validateRequest(functions.config().slack.signing.secret, signingInfo);
+};
 
 export const resolveEvent = functions.https.onRequest((request, response) => {
   functions.logger.info("Event subscription!", { structuredData: true });
@@ -23,6 +38,7 @@ export const resolveEvent = functions.https.onRequest((request, response) => {
   functions.logger.info("challenge", challenge);
   response.status(httpStatus.OK).send();
 });
+
 
 export const resolveInteraction = functions.https.onRequest((request, response) => {
   try {
@@ -33,15 +49,16 @@ export const resolveInteraction = functions.https.onRequest((request, response) 
     functions.logger.info("response url in payload", response_url);
 
     const action = actions.find((act: { action_id: string; }) => act.action_id === blockKitBuilder.CATEGORY_BLOCK);
-    const { value } = action.selected_option
+    const { value, text: { text } } = action.selected_option
+    const message = JSON.stringify({
+      id: value,
+      text: text,
+      url: response_url
+    });
 
-    templateService.listTemplates(value)
-      .subscribe((data) => {
-        const templateBlock = blockKitBuilder.createTemplateBlock(data);
-        functions.logger.info("response", templateBlock);
-        response.send(templateBlock);
-      });
-
+    const dataBuffer = Buffer.from(message);
+    pubSubClient.topic(templateInteraction, { batching: batchSettings }).publish(dataBuffer);
+    response.status(httpStatus.OK).send();
   } catch (exception) {
     functions.logger.error(exception);
     const { status, ...errorResponse } = toResponse(exception);
@@ -49,17 +66,14 @@ export const resolveInteraction = functions.https.onRequest((request, response) 
   }
 });
 
-
-const validateRequest = (request: functions.https.Request) => {
-  const {
-    "x-slack-request-timestamp": timestamp,
-    "x-slack-signature": signature,
-  } = request.headers;
-
-  const { body } = request;
-  const signingInfo = new SigningInfo(timestamp, body, signature);
-  validationService.validateRequest(functions.config().slack.signing.secret, signingInfo);
-};
+export const handleTemplate = functions.pubsub.topic(templateInteraction).onPublish((message, context) => {
+  const { id, url } = message.json;
+  if (!templateService) {
+    templateService = new TemplateService();
+  }
+  templateService.listTemplates(id)
+    .subscribe(data => postResponse(url, blockKitBuilder.createTemplateBlock(data)));
+});
 
 export const resolveCommand = functions.https.onRequest((request, response) => {
   try {
@@ -85,13 +99,14 @@ export const resolveCommand = functions.https.onRequest((request, response) => {
   }
 });
 
-export const handleCommand = functions.pubsub.topic(topic).onPublish((message, context) => {
+export const handleCommand = functions.pubsub.topic(commandTopic).onPublish((message, context) => {
   const { text, url, command } = message.json;
   functions.logger.info("message from pubsub", message);
   if (Command.Category === command) {
     if (!text) {
       categoryService.listCategories()
         .subscribe(
+          // save data to database if we eventually go that direction
           data => postResponse(url, blockKitBuilder.createCategoryBlock(data)),
           (error: AxiosError<VouchrError>) => {
             if (error.response?.status === httpStatus.BAD_REQUEST) {
@@ -104,7 +119,7 @@ export const handleCommand = functions.pubsub.topic(topic).onPublish((message, c
           });
     }
   }
-})
+});
 
 const postResponse = (url: string, data: object) => {
   Axios.post(url, data)
@@ -115,13 +130,13 @@ const postResponse = (url: string, data: object) => {
 }
 
 const publishCommand = (command: string, text: string, url: string, user: object) => {
-  const message = {
+  const message = JSON.stringify({
     text: text,
     command: command,
     url: url,
     user: user
-  };
+  });
 
-  const dataBuffer = Buffer.from(JSON.stringify(message));
-  pubSubClient.topic(topic).publish(dataBuffer);
+  const dataBuffer = Buffer.from(message);
+  pubSubClient.topic(commandTopic, { batching: batchSettings }).publish(dataBuffer);
 }
