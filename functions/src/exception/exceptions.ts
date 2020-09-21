@@ -1,5 +1,5 @@
 import * as status from "http-status";
-import { ErrorCode } from "../vouchr/enum";
+import { ErrorCode, SlackResponseType } from "../vouchr/enum";
 import { ErrorResponse } from "../vouchr/model";
 
 export interface Error {

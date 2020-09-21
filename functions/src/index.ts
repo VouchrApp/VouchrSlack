@@ -102,24 +102,45 @@ export const resolveCommand = functions.https.onRequest((request, response) => {
 export const handleCommand = functions.pubsub.topic(commandTopic).onPublish((message, context) => {
   const { text, url, command } = message.json;
   functions.logger.info("message from pubsub", message);
-  if (Command.Category === command) {
-    if (!text) {
-      categoryService.listCategories()
-        .subscribe(
-          // save data to database if we eventually go that direction
-          data => postResponse(url, blockKitBuilder.createCategoryBlock(data)),
-          (error: AxiosError<VouchrError>) => {
-            if (error.response?.status === httpStatus.BAD_REQUEST) {
-              functions.logger.error("invalid request sent", JSON.stringify(error.response.data));
-              postResponse(url, {
-                "response_type": SlackResponseType.PRIVATE,
-                "text": "Unable to retrieve categories. Please try again!"
-              })
-            }
-          });
+  try {
+    if (Command.Category === command) {
+      resolveCategory(url);
+    } else if (Command.Template == command) {
+      if (!text) {
+        throw new IllegalArgumentException("information is needed for template")
+      } else {
+        resolveTemplate(url, text);
+      }
     }
+  } catch (exception) {
+    functions.logger.error(exception);
+    const { message } = toResponse(exception);
+    postResponse(url, {
+      "response_type": SlackResponseType.PRIVATE,
+      "text": message
+    })
   }
 });
+
+const resolveTemplate = (url: string, text: string) => {
+  //get info from wit.api
+}
+
+
+const resolveCategory = (url: string) => {
+  categoryService.listCategories()
+    .subscribe(
+      data => postResponse(url, blockKitBuilder.createCategoryBlock(data)),
+      (error: AxiosError<VouchrError>) => {
+        if (error.response?.status === httpStatus.BAD_REQUEST) {
+          functions.logger.error("invalid request sent", JSON.stringify(error.response.data));
+          postResponse(url, {
+            "response_type": SlackResponseType.PRIVATE,
+            "text": "Unable to retrieve categories. Please try again!"
+          })
+        }
+      });
+}
 
 const postResponse = (url: string, data: object) => {
   Axios.post(url, data)
